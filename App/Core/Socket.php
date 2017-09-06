@@ -28,7 +28,7 @@ class Socket
     //绑定需要监听的端口
     private $_bindPort = '';
     //所有的实例列表
-    private static $_instanceList = array();
+    private static $_instanceList = [];
     //实例所属所有子进程的Pid列表.一个实例有多个Pid(多子进程).一个MeepoPS有多个实例
     //array('instance1'=>array(1001, 1002, 1003), 'instance2'=>array(1004, 1005, 1006))
     private static $_instancePidList;
@@ -67,13 +67,13 @@ class Socket
     //应用层协议处理类
     private $_applicationProtocolClassName = '';
     //传输层协议
-    private static $_transportProtocolList = array('tcp' => 'tcp');
+    private static $_transportProtocolList = ['tcp' => 'tcp'];
 
     /**
      * 客户端相关
      */
     //客户端列表.每个链接是一个客户端
-    public $clientList = array();
+    public $clientList = [];
 
     /**
      * 事件相关
@@ -99,36 +99,37 @@ class Socket
     //是否启动守护进程
     private static $isDaemon = false;
     //统计信息
-    private static $_statistics = array(
-        'start_time' => '',
-        'instance_exit_info' => array(),
-    );
+    private static $_statistics = [
+        'start_time'         => '',
+        'instance_exit_info' => [],
+    ];
 
     /**
      * 初始化.
      * MeepoPS constructor.
+     *
      * @param string $protocol string 协议,默认为Telnet
-     * @param string $host string 需要监听的地址
-     * @param string $port string 需要监听的端口
-     * @param array $contextOptionList
+     * @param string $host     string 需要监听的地址
+     * @param string $port     string 需要监听的端口
+     * @param array  $contextOptionList
      */
-    public function __construct($protocol = '', $host = '', $port = '', $contextOptionList = array())
+    public function __construct($protocol = '', $host = '', $port = '', $contextOptionList = [])
     {
         //验证端口
-        if($port && $port > 65536){
+        if ($port && $port > 65536) {
             Log::write('Port not more than 65536.', 'FATAL');
         }
         //---每一个实例的属性---
         $this->_bindProtocol = $protocol;
-        $this->_bindHost = $host;
-        $this->_bindPort = $port;
+        $this->_bindHost     = $host;
+        $this->_bindPort     = $port;
         //传入的协议是应用层协议还是传输层协议
-        if($protocol){
+        if ($protocol) {
             if (isset(self::$_transportProtocolList[$protocol])) {
                 $this->_transportProtocol = self::$_transportProtocolList[$this->$protocol];
                 //不是传输层协议,则认为是应用层协议.直接new应用层协议类
-            } else{
-                $this->_applicationProtocol = $protocol;
+            } else {
+                $this->_applicationProtocol          = $protocol;
                 $this->_applicationProtocolClassName = '\MeepoPS\Core\ApplicationProtocol\\' . ucfirst($this->_applicationProtocol);
                 if (!class_exists($this->_applicationProtocolClassName)) {
                     Log::write('Application layer protocol class not found.', 'FATAL');
@@ -140,20 +141,18 @@ class Socket
         //创建资源流上下文
         if ($this->_bindProtocol && $this->_bindHost && $this->_bindPort) {
             $contextOptionList['socket']['backlog'] = !isset($contextOptionList['socket']['backlog']) ? MEEPO_PS_BACKLOG : $contextOptionList['socket']['backlog'];
-            $this->_streamContext = stream_context_create($contextOptionList);
+            $this->_streamContext                   = stream_context_create($contextOptionList);
         }
         //---全局共享信息---
-        $this->_instanceId = spl_object_hash($this);
-        self::$_instanceList[$this->_instanceId] = $this;
-        self::$_instancePidList[$this->_instanceId] = array();
+        $this->_instanceId                          = spl_object_hash($this);
+        self::$_instanceList[$this->_instanceId]    = $this;
+        self::$_instancePidList[$this->_instanceId] = [];
     }
 
     /**
-     * 开始运行MeepoPS
-     * @throws \Exception
-     * @return void
+     * 开始运行
      */
-    public static function runMeepoPS()
+    public static function run()
     {
         //初始化工作
         self::_init();
@@ -176,10 +175,10 @@ class Socket
      */
     private static function _init()
     {
-        //添加统计数据
+        // 添加统计数据
         self::$_statistics['start_time'] = date('Y-m-d H:i:s');
-        //给主进程起个名字
-        Func::setProcessTitle('MeepoPS_Master_Process');
+        // 给主进程起个名字
+        Functions::setProcessTitle('MeepoPS_Master_Process');
         //设置ID
         foreach (self::$_instanceList as $instanceId => $instance) {
             self::$_instancePidList[$instanceId] = array_fill(0, $instance->childProcessCount, 0);
@@ -195,8 +194,8 @@ class Socket
     {
         global $argv;
         $startFilename = trim($argv[0]);
-        $operation = trim($argv[1]);
-        $isDomain = isset($argv[2]) && trim($argv[2]) === '-d' ? true : false;
+        $operation     = trim($argv[1]);
+        $isDomain      = isset($argv[2]) && trim($argv[2]) === '-d' ? true : false;
         //获取主进程ID - 用来判断当前进程是否在运行
         $masterPid = false;
         if (file_exists(MEEPO_PS_MASTER_PID_PATH)) {
@@ -279,10 +278,10 @@ class Socket
         if (!$this->_bindProtocol || !$this->_bindHost || !$this->_bindPort || $this->_masterSocket) {
             return;
         }
-        $listen = $this->_transportProtocol . '://' . $this->_bindHost . ':' . $this->_bindPort;
-        $errno = 0;
-        $errmsg = '';
-        $flags = $this->_transportProtocol === 'tcp' ? STREAM_SERVER_BIND | STREAM_SERVER_LISTEN : STREAM_SERVER_BIND;
+        $listen              = $this->_transportProtocol . '://' . $this->_bindHost . ':' . $this->_bindPort;
+        $errno               = 0;
+        $errmsg              = '';
+        $flags               = $this->_transportProtocol === 'tcp' ? STREAM_SERVER_BIND | STREAM_SERVER_LISTEN : STREAM_SERVER_BIND;
         $this->_masterSocket = stream_socket_server($listen, $errno, $errmsg, $flags, $this->_streamContext);
         if (!$this->_masterSocket) {
             Log::write('stream_socket_server() error: errno=' . $errno . ' errmsg=' . $errmsg, 'FATAL');
@@ -298,7 +297,8 @@ class Socket
         stream_set_blocking($this->_masterSocket, 0);
         //创建一个监听事件
         if (self::$globalEvent) {
-            self::$globalEvent->add(array($this, 'acceptTcpConnect'), array(), $this->_masterSocket, EventInterface::EVENT_TYPE_READ);
+            self::$globalEvent->add([$this, 'acceptTcpConnect'], [], $this->_masterSocket,
+                EventInterface::EVENT_TYPE_READ);
         }
     }
 
@@ -308,9 +308,9 @@ class Socket
     private static function _installSignal()
     {
         //SIGINT为停止MeepoPS的信号
-        pcntl_signal(SIGINT, array('\MeepoPS\Core\MeepoPS', 'signalCallback'), false);
+        pcntl_signal(SIGINT, ['\MeepoPS\Core\MeepoPS', 'signalCallback'], false);
         //SIGUSR1 为查看MeepoPS所有状态的信号
-        pcntl_signal(SIGUSR1, array('\MeepoPS\Core\MeepoPS', 'signalCallback'), false);
+        pcntl_signal(SIGUSR1, ['\MeepoPS\Core\MeepoPS', 'signalCallback'], false);
         //SIGPIPE 信号会导致Linux下Socket进程终止.我们忽略他
         pcntl_signal(SIGPIPE, SIG_IGN, false);
     }
@@ -334,6 +334,7 @@ class Socket
 
     /**
      * 创建子进程
+     *
      * @param $instance object 一个MeepoPS的实例
      */
     private static function _forkInstance($instance)
@@ -348,12 +349,12 @@ class Socket
             self::$_instancePidList[$instance->_instanceId][$pid] = $pid;
             //如果是子进程
         } elseif ($pid === 0) {
-            self::$_instancePidList = array();
-            self::$_instanceList = array($instance->_instanceId => $instance);
+            self::$_instancePidList = [];
+            self::$_instanceList    = [$instance->_instanceId => $instance];
             Timer::delAll();
             Func::setProcessTitle('MeepoPS: instance process  ' . $instance->instanceName . ' ' . $instance->_getBind());
             $instance->id = $id;
-            $instance->run();
+            $instance->execute();
             exit(250);
             //创建进程失败
         } else {
@@ -364,12 +365,12 @@ class Socket
     /**
      * 运行一个实例进程的一个子进程
      */
-    protected function run()
+    protected function execute()
     {
         //设置状态
         self::$_currentStatus = MEEPO_PS_STATUS_RUNING;
         //注册一个退出函数.在任何退出的情况下检测是否由于错误引发的.包括die,exit等都会触发
-        register_shutdown_function(array('\MeepoPS\Core\MeepoPS', 'checkShutdownErrors'));
+        register_shutdown_function(['\MeepoPS\Core\MeepoPS', 'checkShutdownErrors']);
         //创建一个全局的循环事件
         if (!self::$globalEvent) {
             $eventPollClass = '\MeepoPS\Core\Event\\' . ucfirst(self::_chooseEventPoll());
@@ -379,7 +380,8 @@ class Socket
             self::$globalEvent = new $eventPollClass();
             //注册一个读事件的监听.当服务器端的Socket准备读取的时候触发这个事件.
             if ($this->_bindProtocol && $this->_bindHost && $this->_bindPort) {
-                self::$globalEvent->add(array($this, 'acceptTcpConnect'), array(), $this->_masterSocket, EventInterface::EVENT_TYPE_READ);
+                self::$globalEvent->add([$this, 'acceptTcpConnect'], [], $this->_masterSocket,
+                    EventInterface::EVENT_TYPE_READ);
             }
             //重新安装信号处理函数
             self::_reinstallSignalCallback();
@@ -392,7 +394,8 @@ class Socket
                 try {
                     call_user_func($this->callbackStartInstance, $this);
                 } catch (\Exception $e) {
-                    Log::write('MeepoPS: execution callback function callbackStartInstance-' . json_encode($this->callbackStartInstance) . ' throw exception' . json_encode($e), 'ERROR');
+                    Log::write('MeepoPS: execution callback function callbackStartInstance-' . json_encode($this->callbackStartInstance) . ' throw exception' . json_encode($e),
+                        'ERROR');
                 }
             }
             //开启事件轮询
@@ -409,8 +412,10 @@ class Socket
         pcntl_signal(SIGINT, SIG_IGN, false);
         pcntl_signal(SIGUSR1, SIG_IGN, false);
         //安装新的信号的处理函数,采用事件轮询的方式
-        self::$globalEvent->add(array('\MeepoPS\Core\MeepoPS', 'signalCallback'), array(), SIGINT, EventInterface::EVENT_TYPE_SIGNAL);
-        self::$globalEvent->add(array('\MeepoPS\Core\MeepoPS', 'signalCallback'), array(), SIGUSR1, EventInterface::EVENT_TYPE_SIGNAL);
+        self::$globalEvent->add(['\MeepoPS\Core\MeepoPS', 'signalCallback'], [], SIGINT,
+            EventInterface::EVENT_TYPE_SIGNAL);
+        self::$globalEvent->add(['\MeepoPS\Core\MeepoPS', 'signalCallback'], [], SIGUSR1,
+            EventInterface::EVENT_TYPE_SIGNAL);
     }
 
     /**
@@ -423,6 +428,7 @@ class Socket
             $errno = error_get_last();
             if (is_null($errno)) {
                 Log::write('MeepoPS normal exit');
+
                 return;
             }
             Log::write('stream_socket_serverMeepoPS unexpectedly quits. last error: ' . json_encode($errno), 'ERROR');
@@ -431,6 +437,7 @@ class Socket
 
     /**
      * 信号处理函数
+     *
      * @param $signal
      */
     public static function signalCallback($signal)
@@ -478,13 +485,15 @@ class Socket
         } else {
             Log::write('fopen STDIN AND STDOUT file failed. ' . MEEPO_PS_STDOUT_PATH, 'WARNING');
         }
+
         return true;
     }
 
     /**
      * 主进程启动完成
      */
-    private static function _masterProcessComplete(){
+    private static function _masterProcessComplete()
+    {
         //输出启动成功字样
         echo "MeepoPS Start: \033[40G[\033[49;32;5mOK\033[0m]\n";
         //重置输入输出
@@ -506,7 +515,7 @@ class Socket
             pcntl_signal_dispatch();
             //函数刮起当前进程的执行直到一个子进程退出或接收到一个信号要求中断当前进程或调用一个信号处理函数
             $status = 0;
-            $pid = pcntl_wait($status, WUNTRACED);
+            $pid    = pcntl_wait($status, WUNTRACED);
             //再次调用等待信号的处理器.即收到信号后执行通过pcntl_signal安装的信号处理函数
             pcntl_signal_dispatch();
             //如果发生错误或者不是子进程
@@ -521,16 +530,16 @@ class Socket
             foreach (self::$_instancePidList as $instanceId => $pidList) {
                 if (isset($pidList[$pid])) {
                     $instance = self::$_instanceList[$instanceId];
-                    Log::write('MeepoPS instance(' . $instance->instanceName . ':' . $pid . ') exit. Status: ' . $status, $status !== 0 ? 'ERROR' : 'INFO');
+                    Log::write('MeepoPS instance(' . $instance->instanceName . ':' . $pid . ') exit. Status: ' . $status,
+                        $status !== 0 ? 'ERROR' : 'INFO');
                     //记录统计信息.
-                    self::$_statistics['instance_exit_info'][$instanceId]['info'] = $instance;
+                    self::$_statistics['instance_exit_info'][$instanceId]['info']            = $instance;
                     self::$_statistics['instance_exit_info'][$instanceId]['status'][$status] = !isset(self::$_statistics['instance_exit_info'][$instanceId]['status'][$status]) ? 0 : (self::$_statistics['instance_exit_info'][$instanceId]['status'][$status]++);
                     //清除数据
                     self::$_instancePidList[$instanceId][$pid] = 0;
                     break;
                 }
             }
-
             //如果是停止状态, 并且所有的instance的所有进程都没有pid了.那么就退出所有.即所有的子进程都结束了,就退出主进程
             if (self::$_currentStatus === MEEPO_PS_STATUS_SHUTDOWN && !self::_getAllEnablePidList()) {
                 self::_exitAndClearAll();
@@ -560,6 +569,7 @@ class Socket
         if ($this->_bindProtocol && $this->_bindHost && $this->_bindPort) {
             $bind = lcfirst($this->_bindProtocol . '://' . $this->_bindHost . ':' . $this->_bindPort);
         }
+
         return isset($bind) ? $bind : '';
     }
 
@@ -574,6 +584,7 @@ class Socket
         } else {
             self::$_currentPoll = 'select';
         }
+
         return self::$_currentPoll;
     }
 
@@ -583,7 +594,7 @@ class Socket
      */
     private static function _getAllEnablePidList()
     {
-        $ret = array();
+        $ret = [];
         foreach (self::$_instancePidList as $pidList) {
             foreach ($pidList as $pid) {
                 if ($pid > 0) {
@@ -591,6 +602,7 @@ class Socket
                 }
             }
         }
+
         return $ret;
     }
 
@@ -606,7 +618,7 @@ class Socket
             $pidList = self::_getAllEnablePidList();
             foreach ($pidList as $pid) {
                 posix_kill($pid, SIGINT);
-                Timer::add('posix_kill', array($pid, SIGKILL), MEEPO_PS_KILL_INSTANCE_TIME_INTERVAL, false);
+                Timer::add('posix_kill', [$pid, SIGKILL], MEEPO_PS_KILL_INSTANCE_TIME_INTERVAL, false);
             }
             //如果是子进程
         } else {
@@ -624,7 +636,8 @@ class Socket
             try {
                 call_user_func($this->callbackInstanceStop, $this);
             } catch (\Exception $e) {
-                Log::write('MeepoPS: execution callback function callbackInstanceStop-' . json_encode($this->callbackInstanceStop) . ' throw exception' . json_encode($e), 'ERROR');
+                Log::write('MeepoPS: execution callback function callbackInstanceStop-' . json_encode($this->callbackInstanceStop) . ' throw exception' . json_encode($e),
+                    'ERROR');
             }
         }
         //删除这个实例相关的所有事件监听
@@ -636,6 +649,7 @@ class Socket
 
     /**
      * 接收Tcp链接
+     *
      * @param resource $socket Socket资源
      */
     public function acceptTcpConnect($socket)
@@ -650,13 +664,14 @@ class Socket
         $tcpConnect = new Tcp($connect, $peerName, $this->_applicationProtocolClassName);
         //给Tcp链接对象的属性赋值
         $this->clientList[$tcpConnect->id] = $tcpConnect;
-        $tcpConnect->instance = $this;
+        $tcpConnect->instance              = $this;
         //触发有新链接时的回调函数
         if ($this->callbackConnect) {
             try {
                 call_user_func($this->callbackConnect, $tcpConnect);
             } catch (\Exception $e) {
-                Log::write('MeepoPS: execution callback function callbackConnect-' . json_encode($this->callbackConnect) . ' throw exception' . json_encode($e), 'ERROR');
+                Log::write('MeepoPS: execution callback function callbackConnect-' . json_encode($this->callbackConnect) . ' throw exception' . json_encode($e),
+                    'ERROR');
             }
         }
     }
@@ -800,29 +815,29 @@ class Socket
      */
     private static function _statisticsToFile()
     {
-        $statistics = array();
+        $statistics = [];
         //如果是主进程, 写入全局类的信息, 如果是子进程来执行本方法. 将统计信息以追加的方式写入文件.
         if (self::$_masterPid === posix_getpid()) {
             //-----以下为主进程的统计信息---
-            $statistics['master_pid'] = self::$_masterPid;
-            $statistics['event'] = self::_chooseEventPoll();
-            $statistics['start_time'] = self::$_statistics['start_time'];
-            $statistics['total_instance_count'] = count(self::$_instancePidList);
+            $statistics['master_pid']                = self::$_masterPid;
+            $statistics['event']                     = self::_chooseEventPoll();
+            $statistics['start_time']                = self::$_statistics['start_time'];
+            $statistics['total_instance_count']      = count(self::$_instancePidList);
             $statistics['total_child_process_count'] = count(self::_getAllEnablePidList());
-            $statistics['instance_exit_info'] = self::$_statistics['instance_exit_info'];
+            $statistics['instance_exit_info']        = self::$_statistics['instance_exit_info'];
             file_put_contents(MEEPO_PS_STATISTICS_PATH . '_master', json_encode($statistics));
             //主进程做完统计后告诉所有子进程进行统计
             foreach (self::_getAllEnablePidList() as $pid) {
                 posix_kill($pid, SIGUSR1);
             }
-        }else{
+        } else {
             //-----以下为子进程的统计信息---
             //获取系统分配给PHP的内存,四舍五入到两位小数,单位M
-            $instance = current(self::$_instanceList);
-            $statistics['pid'] = posix_getpid();
-            $statistics['memory'] = round(memory_get_usage(true) / (1024 * 1024), 2);
-            $statistics['instance_name'] = $instance->instanceName;
-            $statistics['bind'] = $instance->_getBind();
+            $instance                                    = current(self::$_instanceList);
+            $statistics['pid']                           = posix_getpid();
+            $statistics['memory']                        = round(memory_get_usage(true) / (1024 * 1024), 2);
+            $statistics['instance_name']                 = $instance->instanceName;
+            $statistics['bind']                          = $instance->_getBind();
             $statistics['transport_protocol_statistics'] = TransportProtocolInterface::$statistics;
             file_put_contents(MEEPO_PS_STATISTICS_PATH . '_child_' . $statistics['pid'], json_encode($statistics));
         }
