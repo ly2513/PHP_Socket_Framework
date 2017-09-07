@@ -97,9 +97,9 @@ class Timer
      */
     public static function signalCallback()
     {
-        //没有事件机制,并且队列不为空,则使用alarm信号
+        // 没有事件机制,并且队列不为空,则使用alarm信号
         if (is_null(self::$_event) && !empty(self::$_taskList)) {
-            //创建一个计时器，每秒向进程发送一个alarm信号。
+            // 创建一个计时器，每秒向进程发送一个alarm信号。
             pcntl_alarm(1);
             self::_execute();
         }
@@ -112,22 +112,22 @@ class Timer
     {
         $nowTime = time();
         foreach (self::$_taskList as $timerId => $task) {
-            //当前时间小于启动时间,则不启动该时间段任务
+            // 当前时间小于启动时间,则不启动该时间段任务
             if ($nowTime < $task[2]) {
                 continue;
             }
-            //如果是持续性定时器任务,则添加到下次执行的队伍中
+            // 如果是持续性定时器任务,则添加到下次执行的队伍中
             if ($task[4]) {
                 self::add($task[0], $task[1], $task[3], $task[4]);
             }
-            //执行回调函数
+            // 执行回调函数
             try {
                 call_user_func_array($task[0], $task[1]);
             } catch (\Exception $e) {
                 Log::write('YP_Socket: execution callback function timer execute-' . $task[0] . ' throw exception' . json_encode($e),
                     'ERROR');
             }
-            //删除本次已经执行的任务
+            // 删除本次已经执行的任务
             unset(self::$_taskList[$timerId]);
         }
     }

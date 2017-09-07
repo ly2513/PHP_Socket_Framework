@@ -27,7 +27,7 @@ if (YP_DEBUG) {
 }
 
 // 开启立即刷新输出
-if (YP_IMPLICIT_FLUSH) {
+if (IMPLICIT_FLUSH) {
     ob_implicit_flush();
 } else {
     ob_implicit_flush(false);
