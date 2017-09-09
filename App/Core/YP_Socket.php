@@ -14,136 +14,260 @@ use App\Core\Event\EventInterface;
 
 class YP_Socket
 {
+    /*************** 实例相关.每个实例都是一个YP_Socket的对象.每个实例至少有一个进程 ****************/
     /**
-     * 实例相关.每个实例都是一个MeepoPS的对象.每个实例至少有一个进程
+     * 实例名称
+     *
+     * @var string
      */
-    //实例名称
     public $instanceName;
-    //这个实例有多少子进程
+
+    /**
+     * 这个实例有多少子进程
+     *
+     * @var int
+     */
     public $childProcessCount = 1;
-    //绑定需要解析的协议
+
+    /**
+     * 绑定需要解析的协议
+     *
+     * @var string
+     */
     private $_bindProtocol = '';
-    //绑定需要监听的主机IP
+
+    /**
+     * 绑定需要监听的主机IP
+     *
+     * @var string
+     */
     private $_bindHost = '';
-    //绑定需要监听的端口
+
+    /**
+     * 绑定需要监听的端口
+     *
+     * @var string
+     */
     private $_bindPort = '';
-    //所有的实例列表
+
+    /**
+     * 所有的实例列表
+     *
+     * @var array
+     */
     private static $_instanceList = [];
-    //实例所属所有子进程的Pid列表.一个实例有多个Pid(多子进程).一个MeepoPS有多个实例
-    //array('instance1'=>array(1001, 1002, 1003), 'instance2'=>array(1004, 1005, 1006))
+
+    /**
+     * 实例所属所有子进程的Pid列表.一个实例有多个Pid(多子进程).一个MeepoPS有多个实例
+     * array('instance1'=>array(1001, 1002, 1003), 'instance2'=>array(1004, 1005, 1006))
+     *
+     * @var
+     */
     private static $_instancePidList;
-    //实例ID
+
+    /**
+     * 实例ID
+     *
+     * @var string
+     */
     private $_instanceId;
-    //当前状态
+
+    /**
+     * 当前状态
+     *
+     * @var
+     */
     private static $_currentStatus = MEEPO_PS_STATUS_STARTING;
 
+    /*************** 回调函数 ****************/
     /**
-     * 回调函数
+     * YP_Socket启动时触发该回调函数
+     *
+     * @var
      */
-    //MeepoPS启动时触发该回调函数
     public $callbackStartInstance;
-    //有新的链接加入时触发该回调函数
+
+    /**
+     * 有新的链接加入时触发该回调函数
+     *
+     * @var
+     */
     public $callbackConnect;
-    //收到新数据时触发该回调函数
+
+    /**
+     * 收到新数据时触发该回调函数
+     *
+     * @var
+     */
     public $callbackNewData;
-    //实例停止时触发该回调函数
+
+    /**
+     * 实例停止时触发该回调函数
+     *
+     * @var
+     */
     public $callbackInstanceStop;
-    //链接断开时出发该回调函数
+
+    /**
+     * 链接断开时出发该回调函数
+     *
+     * @var
+     */
     public $callbackConnectClose;
-    //有错误时触发该回调函数
+
+    /**
+     * 有错误时触发该回调函数
+     *
+     * @var
+     */
     public $callbackError;
-    //待发送缓冲区已经塞满时触发该回调函数
+
+    /**
+     * 待发送缓冲区已经塞满时触发该回调函数
+     *
+     * @var
+     */
     public $callbackSendBufferFull;
-    //待发送缓冲区没有积压时触发该回调函数
+
+    /**
+     * 待发送缓冲区没有积压时触发该回调函数
+     *
+     * @var
+     */
     public $callbackSendBufferEmpty;
 
+    /************** 协议相关 ***************/
     /**
-     * 协议相关
+     * 传输层协议
+     *
+     * @var mixed|string
      */
-    //传输层协议
     private $_transportProtocol = 'tcp';
-    //应用层协议
+
+    /**
+     * 应用层协议
+     *
+     * @var string
+     */
     private $_applicationProtocol = '';
-    //应用层协议处理类
+
+    /**
+     * 应用层协议处理类
+     *
+     * @var string
+     */
     private $_applicationProtocolClassName = '';
-    //传输层协议
+
+    /**
+     * 传输层协议
+     *
+     * @var array
+     */
     private static $_transportProtocolList = ['tcp' => 'tcp'];
 
+    /***************** 客户端相关 *****************/
     /**
-     * 客户端相关
+     * 客户端列表.每个链接是一个客户端
+     *
+     * @var array
      */
-    //客户端列表.每个链接是一个客户端
     public $clientList = [];
 
+    /******************* 事件相关 *******************/
     /**
-     * 事件相关
+     * 全局事件
+     *
+     * @var
      */
-    //全局事件
     public static $globalEvent;
-    //当前的事件轮询方式,默认为select.但是不推荐select, 建议使用ngxin所采用的epoll方式.需要安装libevent
+
+    /**
+     * 当前的事件轮询方式,默认为select.但是不推荐select, 建议使用ngxin所采用的epoll方式.需要安装libevent
+     *
+     * @var string
+     */
     private static $_currentPoll = 'select';
 
+    /******************* Socket相关 ********************/
     /**
-     * Socket相关
+     * 主进程PID
+     *
+     * @var
      */
-    //主进程PID
     private static $_masterPid;
-    //主进程Socket资源.由stream_socket_server()返回
-    private $_masterSocket;
-    //Socket上下文资源,由stream_context_create()返回
-    private $_streamContext;
 
     /**
-     * 其他
+     * 主进程Socket资源.由stream_socket_server()返回
+     *
+     * @var
      */
-    //是否启动守护进程
+    private $_masterSocket;
+
+    /**
+     * Socket上下文资源,由stream_context_create()返回
+     *
+     * @var resource
+     */
+    private $_streamContext;
+
+    /****************** 其他 *******************/
+    /**
+     * 是否启动守护进程
+     *
+     * @var bool
+     */
     private static $isDaemon = false;
-    //统计信息
+
+    /**
+     * 统计信息
+     *
+     * @var array
+     */
     private static $_statistics = [
         'start_time'         => '',
         'instance_exit_info' => [],
     ];
 
     /**
-     * 初始化.
-     * MeepoPS constructor.
+     * 初始化
+     * YP_Socket constructor.
      *
-     * @param string $protocol string 协议,默认为Telnet
-     * @param string $host     string 需要监听的地址
-     * @param string $port     string 需要监听的端口
+     * @param string $protocol 协议,默认为Telnet
+     * @param string $host     需要监听的地址
+     * @param string $port     需要监听的端口
      * @param array  $contextOptionList
      */
     public function __construct($protocol = '', $host = '', $port = '', $contextOptionList = [])
     {
-        //验证端口
+        // 验证端口
         if ($port && $port > 65536) {
             Log::write('Port not more than 65536.', 'FATAL');
         }
-        //---每一个实例的属性---
+        // ---每一个实例的属性---
         $this->_bindProtocol = $protocol;
         $this->_bindHost     = $host;
         $this->_bindPort     = $port;
-        //传入的协议是应用层协议还是传输层协议
+        // 传入的协议是应用层协议还是传输层协议
         if ($protocol) {
             if (isset(self::$_transportProtocolList[$protocol])) {
                 $this->_transportProtocol = self::$_transportProtocolList[$this->$protocol];
-                //不是传输层协议,则认为是应用层协议.直接new应用层协议类
+                // 不是传输层协议,则认为是应用层协议.直接new应用层协议类
             } else {
                 $this->_applicationProtocol          = $protocol;
-                $this->_applicationProtocolClassName = '\MeepoPS\Core\ApplicationProtocol\\' . ucfirst($this->_applicationProtocol);
+                $this->_applicationProtocolClassName = '\YP_Socket\Core\ApplicationProtocol\\' . ucfirst($this->_applicationProtocol);
                 if (!class_exists($this->_applicationProtocolClassName)) {
                     Log::write('Application layer protocol class not found.', 'FATAL');
                 }
             }
         }
-        //给实例起名
+        // 给实例起名
         $this->instanceName = $this->instanceName ? $this->instanceName : $this->_getBind();
-        //创建资源流上下文
+        // 创建资源流上下文
         if ($this->_bindProtocol && $this->_bindHost && $this->_bindPort) {
             $contextOptionList['socket']['backlog'] = !isset($contextOptionList['socket']['backlog']) ? MEEPO_PS_BACKLOG : $contextOptionList['socket']['backlog'];
             $this->_streamContext                   = stream_context_create($contextOptionList);
         }
-        //---全局共享信息---
+        // ---全局共享信息---
         $this->_instanceId                          = spl_object_hash($this);
         self::$_instanceList[$this->_instanceId]    = $this;
         self::$_instancePidList[$this->_instanceId] = [];
@@ -154,19 +278,19 @@ class YP_Socket
      */
     public static function run()
     {
-        //初始化工作
+        // 初始化工作
         self::_init();
-        //根据启动命令选择是开始\重启\查看状态\结束等
+        // 根据启动命令选择是开始\重启\查看状态\结束等
         self::_command();
-        //保存主进程id到文件中
+        // 保存主进程id到文件中
         self::_saveMasterPid();
-        //启动实例
+        // 启动实例
         self::_createInstance();
-        //给主进程安装信号处理函数
+        // 给主进程安装信号处理函数
         self::_installSignal();
-        //检测每个实例,并启动相应数量的子进程
+        // 检测每个实例,并启动相应数量的子进程
         self::_checkInstanceListProcess();
-        //主进程启动完成
+        // 主进程启动完成
         self::_masterProcessComplete();
     }
 
