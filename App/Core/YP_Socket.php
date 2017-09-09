@@ -329,7 +329,7 @@ class YP_Socket
             }
         }
         // 子进程启动完毕后,设置主进程状态为运行中
-        self::$_currentStatus = STATUS_RUNING;
+        self::$_currentStatus = STATUS_RUNNING;
     }
 
     /**
@@ -368,7 +368,7 @@ class YP_Socket
     protected function execute()
     {
         // 设置状态
-        self::$_currentStatus = STATUS_RUNING;
+        self::$_currentStatus = STATUS_RUNNING;
         // 注册一个退出函数.在任何退出的情况下检测是否由于错误引发的.包括die,exit等都会触发
         register_shutdown_function(['\App\Core\YP_Socket', 'checkShutdownErrors']);
         // 创建一个全局的循环事件
@@ -424,7 +424,7 @@ class YP_Socket
     public static function checkShutdownErrors()
     {
         Log::write('YP_Socket check shutdown reason');
-        if (self::$_currentStatus != MEEPO_PS_STATUS_SHUTDOWN) {
+        if (self::$_currentStatus != STATUS_SHUTDOWN) {
             $errno = error_get_last();
             if (is_null($errno)) {
                 Log::write('YP_Socket normal exit');
@@ -458,7 +458,7 @@ class YP_Socket
     private static function _startScreen()
     {
         echo "-------------------------- YP_Socket Start Success ------------------------\n";
-        echo 'YP_Socket Version: ' . MEEPO_PS_VERSION . ' | PHP Version: ' . PHP_VERSION . ' | Master Pid: ' . self::$_masterPid . ' | Event: ' . ucfirst(self::_chooseEventPoll()) . "\n";
+        echo 'YP_Socket Version: ' . YP_VERSION . ' | PHP Version: ' . PHP_VERSION . ' | Master Pid: ' . self::$_masterPid . ' | Event: ' . ucfirst(self::_chooseEventPoll()) . "\n";
         echo "-------------------------- Instances List -------------------------\n";
         foreach (self::$_instanceList as $instance) {
             echo $instance->instanceName . '  ' . $instance->_getBind() . '  Child Process: ' . $instance->childProcessCount . "\n";
