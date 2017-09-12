@@ -52,7 +52,7 @@ class Http extends YP_Socket
     /**
      * 运行一个WebService实例
      */
-    public function run()
+    public function execute()
     {
         if (empty($this->_documentRoot)) {
             Log::write('not set document root.', 'ERROR');
@@ -61,7 +61,7 @@ class Http extends YP_Socket
         $this->_userCallbackNewData = $this->callbackNewData;
         $this->callbackNewData      = [$this, 'callbackNewData'];
         // 运行YP_Socket
-        parent::run();
+        parent::execute();
     }
 
     /**
@@ -96,7 +96,7 @@ class Http extends YP_Socket
      */
     public static function setHeader($string, $replace = true, $httpResponseCode = 0)
     {
-        return \MeepoPS\Core\ApplicationProtocol\Http::setHeader($string, $replace, $httpResponseCode);
+        return \App\Core\AppProtocol\Http::setHeader($string, $replace, $httpResponseCode);
     }
 
     /**
@@ -106,7 +106,7 @@ class Http extends YP_Socket
      */
     public static function delHttpHeader($name)
     {
-        \MeepoPS\Core\ApplicationProtocol\Http::delHttpHeader($name);
+        \App\Core\AppProtocol\Http::delHttpHeader($name);
     }
 
     /**
@@ -132,8 +132,7 @@ class Http extends YP_Socket
         $secure = false,
         $httpOnly = false
     ) {
-        return \MeepoPS\Core\ApplicationProtocol\Http::setCookie($name, $value, $maxage, $path, $domain, $secure,
-            $httpOnly);
+        return \App\Core\AppProtocol\Http::setCookie($name, $value, $maxage, $path, $domain, $secure, $httpOnly);
     }
 
     /**
@@ -150,6 +149,7 @@ class Http extends YP_Socket
      * 写入SESSION
      * 默认情况下自动执行
      * 功能类似session_write_close();
+     *
      * @return bool
      */
     public static function sessionWrite()
@@ -160,6 +160,7 @@ class Http extends YP_Socket
     /**
      * 获取SESSION ID
      * 功能类似session_id();
+     *
      * @return bool
      */
     public static function sessionId()
@@ -170,6 +171,7 @@ class Http extends YP_Socket
     /**
      * SESSION
      * 功能类似session_destroy();
+     *
      * @return bool
      */
     public static function sessionDestroy()
@@ -207,11 +209,11 @@ class Http extends YP_Socket
         $urlPath      = $urlPath[strlen($urlPath) - 1] === '/' ? substr($urlPath, 0, -1) : $urlPath;
         $documentRoot = isset($this->_documentRoot[$_SERVER['HTTP_HOST']]) ? $this->_documentRoot[$_SERVER['HTTP_HOST']] : current($this->_documentRoot);
         $filename     = $documentRoot . $urlPath;
-        //清除文件状态缓存
+        // 清除文件状态缓存
         clearstatcache();
-        //如果是目录
+        // 如果是目录
         if (is_dir($filename)) {
-            //如果缺省首页存在
+            // 如果缺省首页存在
             if ($this->_defaultIndexList) {
                 foreach ($this->_defaultIndexList as $index) {
                     $file = $filename . '/' . trim($index);
@@ -227,24 +229,24 @@ class Http extends YP_Socket
                 return;
             }
         }
-        //文件是否有效
+        // 文件是否有效
         if (!is_file($filename)) {
             $this->setHeader("HTTP/1.1 404 Not Found");
             $this->_close($connect, $this->_getErrorPage(404, 'File not found'));
 
             return;
         }
-        //文件是否可读
+        // 文件是否可读
         if (!is_readable($filename)) {
             $this->setHeader("HTTP/1.1 403 Forbidden");
             $this->_close($connect, $this->_getErrorPage(403, 'Forbidden'));
 
             return;
         }
-        //获取文件后缀
+        // 获取文件后缀
         $urlPathInfo = pathinfo($filename);
         $fileExt     = isset($urlPathInfo['extension']) ? $urlPathInfo['extension'] : '';
-        //访问的路径是否是指定根目录的子目录
+        // 访问的路径是否是指定根目录的子目录
         $realFilename         = realpath($filename);
         $documentRootRealPath = realpath($documentRoot) . '/';
         if (!$realFilename || !$documentRootRealPath || strpos($realFilename, $documentRootRealPath) !== 0) {
@@ -253,7 +255,7 @@ class Http extends YP_Socket
 
             return;
         }
-        //如果请求的是PHP文件
+        // 如果请求的是PHP文件
         if ($fileExt === 'php') {
             ob_start();
             try {
@@ -266,15 +268,15 @@ class Http extends YP_Socket
 
             return;
         }
-        //静态文件
+        // 静态文件
         $mimeType = $this->_getMimeTypeByExt($fileExt);
         $fileExt && isset($mimeType) ? $this->setHeader('Content-Type: ' . $mimeType) : $this->setHeader('Content-Type: text/html; charset=utf-8');
-        //获取文件更新时间
+        // 获取文件更新时间
         $fileMtime = filemtime($filename);
         if ($fileMtime) {
             $fileMtime = date('D, d M Y H:i:s', $fileMtime) . ' GMT';
             $this->setHeader('Last-Modified: ' . $fileMtime);
-            //静态文件未改变.则返回304
+            // 静态文件未改变.则返回304
             if (!empty($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $fileMtime === $_SERVER['HTTP_IF_MODIFIED_SINCE']) {
                 $this->setHeader('HTTP/1.1 304 Not Modified');
                 $this->_close($connect, '');
@@ -282,12 +284,18 @@ class Http extends YP_Socket
                 return;
             }
         }
-        //给客户端发送消息,并且断开连接.
+        // 给客户端发送消息,并且断开连接.
         $this->_close($connect, file_get_contents($realFilename));
 
         return;
     }
 
+    /**
+     * 给客户端发送消息,并且断开连接.
+     *
+     * @param $connect
+     * @param $data
+     */
     private function _close($connect, $data)
     {
         $connect->close($data);
@@ -304,7 +312,7 @@ class Http extends YP_Socket
      */
     private function _getMimeTypeByExt($ext)
     {
-        //从nginx1.10.0的mime.types中复制的, 然后转换成数组
+        // 从nginx1.10.0的mime.types中复制的, 然后转换成数组
         $mimeTypeList = [
             'html'    => 'text/html',
             'htm'     => 'text/html',
@@ -440,13 +448,13 @@ class Http extends YP_Socket
             return false;
         }
         if (!isset($this->_errorPage[$httpCode])) {
-            $httpCodeArray = \MeepoPS\Core\ApplicationProtocol\Http::getHttpCode();
+            $httpCodeArray = \App\Core\AppProtocol\Http::getHttpCode();
             $message       = $message ? $message : '';
             $description   = $description ? $description : (isset($httpCodeArray[$httpCode]) ? $httpCodeArray[$httpCode] : '');
             $display       = '<html><head><title>%s %s</title></head><body><center><h3>%s %s</h3><br>%s</center></body></html>';
             $display       = sprintf($display, $httpCode, $message, $httpCode, $message, $description);
         } else {
-            //如果是文件
+            // 如果是文件
             if (file_exists($this->_errorPage[$httpCode])) {
                 ob_start();
                 include $this->_errorPage[$httpCode];
