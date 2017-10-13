@@ -8,7 +8,7 @@
  */
 namespace App;
 
-use App\Core\Socket;
+use App\Core\YP_Socket as Socket;
 
 // 定义根目录
 define('ROOT_PATH', dirname(__FILE__) . '/');
@@ -26,5 +26,5 @@ require_once ROOT_PATH . '/Core/Init.php';
 // 启动框架
 function run()
 {
-    Socket::runMeepoPS();
+    Socket::run();
 }
